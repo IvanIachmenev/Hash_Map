@@ -4,11 +4,6 @@
 #include <memory>
 #include <utility>
 #include <type_traits>
-#include <deque>
-#include <vector>
-#include <list>
-
-using namespace std;
 
 namespace fefu
 {
@@ -25,37 +20,48 @@ public:
     using value_type = T;
 
     allocator() noexcept
-        :size = 16;
-    {
-        buffer = malloc(size);
-    }
+    :capacity(16),
+    offset(0),
+    buffer(malloc(capacity))
+    {}
 	
-    allocator(const allocator&) noexcept
-    {
-        
-    }
+    allocator(const allocator&) noexcept;
 	
     template <class U>
     allocator(const allocator<U>&) noexcept;
 	
     ~allocator()
     {
-        assert(buffer == 0);
+        capacity = NULL;
+        offset = NULL;
+        free(buffer);
     }
 
     pointer allocate(size_type n)
     {
-        list.front(n);
+        offset += n;
+        if(capacity - offset < n)
+        {
+            capacity *= 2;
+            realloc(buffer, capacity);
+        }else
+        {
+            T* ptr = malloc(n);
+            buffer[n] = 1;
+            return ptr;
+        }
     }
 	
     void deallocate(pointer p, size_type n) noexcept
     {
-
+        free(p);
+        p = nullptr;
+        buffer[n] = 0;
+        offset -= n;
     }
 private:
-    size_t size;
-    T* buffer;
-    list<pointer> list;
+    size_type offset, capacity;
+    size_type *buffer;
 };
 
 template<typename ValueType>
