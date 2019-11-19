@@ -44,12 +44,12 @@ public:
         {
             capacity *= 2;
             realloc(buffer, capacity);
-        }else
-        {
-            T* ptr = malloc(n);
-            buffer[n] = 1;
-            return ptr;
         }
+        
+        T* ptr = malloc(n);
+        buffer[n] = 1;
+        return ptr;
+    
     }
 	
     void deallocate(pointer p, size_type n) noexcept
