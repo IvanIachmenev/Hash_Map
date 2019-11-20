@@ -21,8 +21,7 @@ public:
 
     allocator() noexcept
     :capacity(16),
-    offset(0),
-    buffer(malloc(capacity))
+    offset(0)
     {}
 	
     allocator(const allocator&) noexcept;
@@ -32,36 +31,31 @@ public:
 	
     ~allocator()
     {
-        capacity = NULL;
-        offset = NULL;
-        free(buffer);
+        capacity = nullptr;
+        offset = nullptr;
+        buffer = nullptr;
     }
 
     pointer allocate(size_type n)
     {
-        offset += n;
         if(capacity - offset < n)
         {
-            capacity *= 2;
-            realloc(buffer, capacity);
+            capacity *= 2;  
         }
+        offset += n;
         
-        T* ptr = malloc(n);
-        buffer[n] = 1;
+        T* ptr = buffer + offset;
         return ptr;
-    
     }
 	
     void deallocate(pointer p, size_type n) noexcept
     {
-        free(p);
         p = nullptr;
-        buffer[n] = 0;
         offset -= n;
     }
 private:
     size_type offset, capacity;
-    size_type *buffer;
+    T* *buffer;
 };
 
 template<typename ValueType>
