@@ -9,7 +9,8 @@ namespace fefu
 {
 
 template<typename T>
-class allocator {
+class allocator
+{
 public:
     using size_type = std::size_t;
     using difference_type = std::ptrdiff_t;
@@ -20,31 +21,36 @@ public:
     using value_type = T;
 
     allocator() noexcept
-    :capacity(16),
+    :capacity(256),
     offset(0)
-    {}
+    {
+        buffer = malloc(capacity * sizeof(T));
+    }
 	
-    allocator(const allocator&) noexcept;
+    allocator(const allocator& src) noexcept
+    {
+        this->buffer = src.buffer;
+        this->capacity = src.capacity;
+        this->offset = src.offset;
+    }
 	
     template <class U>
-    allocator(const allocator<U>&) noexcept;
+    allocator(const allocator<U>& src) noexcept
+    {
+        this->buffer = src.buffer;
+        this->capacity = src.capacity;
+        this->offset = src.offset;
+    }
 	
     ~allocator()
     {
-        capacity = nullptr;
-        offset = nullptr;
-        buffer = nullptr;
+        free(buffer);
     }
 
     pointer allocate(size_type n)
     {
-        if(capacity - offset < n)
-        {
-            capacity *= 2;  
-        }
         offset += n;
-        
-        T* ptr = buffer + offset;
+        pointer ptr = buffer + offset;
         return ptr;
     }
 	
@@ -53,33 +59,48 @@ public:
         p = nullptr;
         offset -= n;
     }
+
 private:
     size_type offset, capacity;
-    T* *buffer;
+    pointer buffer;
 };
 
 template<typename ValueType>
-class hash_map_iterator {
+class hash_map_iterator 
+{
 public:
     using iterator_category = std::forward_iterator_tag;
     using value_type = ValueType;
     using difference_type = std::ptrdiff_t;
     using reference = ValueType&;
     using pointer = ValueType*;
-
+    ha
     hash_map_iterator() noexcept;
+
     hash_map_iterator(const hash_map_iterator& other) noexcept;
 
     reference operator*() const;
     pointer operator->() const;
 
     // prefix ++
-    hash_map_iterator& operator++();
+    hash_map_iterator& operator++()
+    {
+        return p_hash_map++;
+    }
     // postfix ++
-    hash_map_iterator operator++(int);
+    hash_map_iterator operator++(int n)
+    {
+        return ++p_hash_map;
+    }
 
     friend bool operator==(const hash_map_iterator<ValueType>&, const hash_map_iterator<ValueType>&);
     friend bool operator!=(const hash_map_iterator<ValueType>&, const hash_map_iterator<ValueType>&);
+private:
+    hash_map_iterator(pointer p_hash_map)
+    {
+        this->p_hash_map = p_hash_map;
+    }
+    pointer p_hash_map;
 };
 
 template<typename ValueType>
@@ -133,7 +154,10 @@ public:
      *  @brief  Default constructor creates no elements.
      *  @param n  Minimal initial number of buckets.
      */
-    explicit hash_map(size_type n);
+    explicit hash_map(size_type n)
+    :size_map_max(n),
+    current_size(0)
+    {}
 
     /**
      *  @brief  Builds an %hash_map from a range.
@@ -150,10 +174,20 @@ public:
         size_type n = 0);
 
     /// Copy constructor.
-    hash_map(const hash_map&);
+    hash_map(const hash_map& src)
+    {
+        this->alloc = src.alloc;
+        this->size_map_max = src.size_map_max;
+        this->current_size = src.current_size;
+    }
 
     /// Move constructor.
-    hash_map(hash_map&&);
+    hash_map(hash_map&& src)
+    :alloc(src.alloc),
+    size_map_max(src.size_map_max),
+    current_size(src.current_size)
+    {
+    }
 
     /**
      *  @brief Creates an %hash_map with no elements.
@@ -208,18 +242,35 @@ public:
     hash_map& operator=(std::initializer_list<value_type> l);
 
     ///  Returns the allocator object used by the %hash_map.
-    allocator_type get_allocator() const noexcept;
+    allocator_type get_allocator() const noexcept
+    {
+        return alloc;
+    }
 
     // size and capacity:
 
     ///  Returns true if the %hash_map is empty.
-    bool empty() const noexcept;
+    bool empty() const noexcept
+    {
+        if(!current_size)
+        {
+            return true;
+        }
+
+        return false
+    }
 
     ///  Returns the size of the %hash_map.
-    size_type size() const noexcept;
+    size_type size() const noexcept
+    {
+        return current_size;
+    }
 
     ///  Returns the maximum size of the %hash_map.
-    size_type max_size() const noexcept;
+    size_type max_size() const noexcept
+    {
+        return size_map_max;
+    }
 
     // iterators.
 
@@ -580,6 +631,9 @@ public:
     void reserve(size_type n);
 
     bool operator==(const hash_map& other) const;
+private:
+    size_type size_map_max, current_size;
+    Alloc alloc;
 };
 
 } // namespace fefu
