@@ -26,20 +26,27 @@ public:
     {
         buffer = malloc(capacity * sizeof(T));
     }
+
+    allocator(size_type n) noexcept
+    :capacity(n),
+    offset(0)
+    {
+        buffer = malloc(capacity * sizeof(T));
+    }
 	
     allocator(const allocator& src) noexcept
+    :capacity(src.capacity),
+    offset(src.offset)
     {
-        this->buffer = src.buffer;
-        this->capacity = src.capacity;
-        this->offset = src.offset;
+        buffer = malloc(capacity * sizeof(T));
     }
 	
     template <class U>
     allocator(const allocator<U>& src) noexcept
+    :capacity(src.capacity),
+    offset(src.offset)
     {
-        this->buffer = src.buffer;
-        this->capacity = src.capacity;
-        this->offset = src.offset;
+        buffer = malloc(capacity * sizeof(T));
     }
 	
     ~allocator()
@@ -49,6 +56,11 @@ public:
 
     pointer allocate(size_type n)
     {
+        // if(capacity - offset < n)
+        // {
+        //     allocator a(capacity * 2);
+        //     a.capacity;
+        // }
         offset += n;
         pointer ptr = buffer + offset;
         return ptr;
@@ -74,37 +86,44 @@ public:
     using difference_type = std::ptrdiff_t;
     using reference = ValueType&;
     using pointer = ValueType*;
-    ha
+
     hash_map_iterator() noexcept;
 
     hash_map_iterator(const hash_map_iterator& other) noexcept;
 
-    reference operator*() const;
-    pointer operator->() const;
+    reference operator*() const
+    {
+        return *p;
+    }
+
+    pointer operator->() const
+    {
+        return p;
+    }
 
     // prefix ++
     hash_map_iterator& operator++()
     {
-        return p_hash_map++;
+        ++p;
+        return *this;
     }
     // postfix ++
-    hash_map_iterator operator++(int n)
+    hash_map_iterator operator++(int)
     {
-        return ++p_hash_map;
+        hash_map_iterator it(p++);
+        return it;
     }
 
     friend bool operator==(const hash_map_iterator<ValueType>&, const hash_map_iterator<ValueType>&);
     friend bool operator!=(const hash_map_iterator<ValueType>&, const hash_map_iterator<ValueType>&);
 private:
-    hash_map_iterator(pointer p_hash_map)
-    {
-        this->p_hash_map = p_hash_map;
-    }
-    pointer p_hash_map;
+    ValueType *p;
+    hash_map_iterator(ValueType *p) : p(p) {}
 };
 
 template<typename ValueType>
-class hash_map_const_iterator {
+class hash_map_const_iterator
+{
 // Shouldn't give non const references on value
 public:
     using iterator_category = std::forward_iterator_tag;
@@ -117,16 +136,34 @@ public:
     hash_map_const_iterator(const hash_map_const_iterator& other) noexcept;
     hash_map_const_iterator(const hash_map_iterator<ValueType>& other) noexcept;
 
-    reference operator*() const;
-    pointer operator->() const;
+    reference operator*() const
+    {
+        return *p;
+    }
+    pointer operator->() const
+    {
+        return p;
+    }
 
     // prefix ++
-    hash_map_const_iterator& operator++();
+    hash_map_const_iterator& operator++()
+    {
+        ++p;
+        return *this;
+    }
     // postfix ++
-    hash_map_const_iterator operator++(int);
+    hash_map_const_iterator operator++(int)
+    {
+        hash_map_const_iterator it(p++);
+        return it;
+    }
 
     friend bool operator==(const hash_map_const_iterator<ValueType>&, const hash_map_const_iterator<ValueType>&);
     friend bool operator!=(const hash_map_const_iterator<ValueType>&, const hash_map_const_iterator<ValueType>&);
+private:
+    ValueType *p;
+    hash_map_const_iterator(ValueType *p) : p(p) {}
+    template<typename , typename , typename, typename, typename> friend class hash_map;
 };
 template<typename K, typename T,
 	   typename Hash = std::hash<K>,
@@ -176,9 +213,9 @@ public:
     /// Copy constructor.
     hash_map(const hash_map& src)
     {
-        this->alloc = src.alloc;
         this->size_map_max = src.size_map_max;
         this->current_size = src.current_size;
+        Alloc alocc;
     }
 
     /// Move constructor.
@@ -187,13 +224,17 @@ public:
     size_map_max(src.size_map_max),
     current_size(src.current_size)
     {
+        src->~hash_map();
     }
 
     /**
      *  @brief Creates an %hash_map with no elements.
      *  @param a An allocator object.
      */
-    explicit hash_map(const allocator_type& a);
+    explicit hash_map(const allocator_type& a)
+    {
+        alloc = a;
+    }
 
     /*
     *  @brief Copy constructor with allocator argument.
@@ -222,8 +263,18 @@ public:
     hash_map(std::initializer_list<value_type> l,
         size_type n = 0);
 
+    ~hash_map()
+    {}
+
     /// Copy assignment operator.
-    hash_map& operator=(const hash_map&);
+    hash_map& operator=(const hash_map& src)
+    {
+        size_map_max = src.size_map_max;
+        current_size = src.current_size;
+        Alloc al;
+        l = src.l;
+        return *this;
+    }
 
     /// Move assignment operator.
     hash_map& operator=(hash_map&&);
@@ -257,7 +308,7 @@ public:
             return true;
         }
 
-        return false
+        return false;
     }
 
     ///  Returns the size of the %hash_map.
@@ -278,7 +329,10 @@ public:
      *  Returns a read/write iterator that points to the first element in the
      *  %hash_map.
      */
-    iterator begin() noexcept;
+    iterator begin() noexcept
+    {
+        
+    }
 
     //@{
     /**
@@ -361,9 +415,9 @@ public:
 
     //@{
     /**
-     *  @brief Attempts to insert a std::pair into the %hash_map.
-     *  @param x Pair to be inserted (see std::make_pair for easy
-     *	     creation of pairs).
+    *  @brief Attempts to insert a std::pair into the %hash_map.
+    *  @param x Pair to be inserted (see std::make_pair for easy
+    *	     creation of pairs).
     *
     *  @return  A pair, of which the first element is an iterator that
     *           points to the possibly inserted pair, and the second is
@@ -634,6 +688,7 @@ public:
 private:
     size_type size_map_max, current_size;
     Alloc alloc;
+    std::initializer_list<value_type> l;
 };
 
 } // namespace fefu
